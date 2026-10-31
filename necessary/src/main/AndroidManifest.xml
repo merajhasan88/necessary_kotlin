@@ -1,0 +1,57 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- What the SDK's own features need; all normal permissions, granted at
+         install. The location permissions are the app's to declare and ask for:
+         the SDK measures the location only where the app has them. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- The network probe asks the connectivity service whether a VPN or a proxy
+         is in use. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Step-up prompts (BiometricPrompt, device credential or biometric). -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!-- screen_capture on Android 15 and later: whether this app's window is being
+         recorded. -->
+    <uses-permission android:name="android.permission.DETECT_SCREEN_RECORDING" />
+    <!-- Screen protection: other apps' windows are not drawn over the protected
+         window (Android 12 and later). -->
+    <uses-permission android:name="android.permission.HIDE_OVERLAY_WINDOWS" />
+    <queries>
+        <!-- The apps that can hold Accessibility, a keyboard, notification access
+             or device administration, so the accessibility, notification_access
+             and other_access measurements can read who installed each. -->
+        <intent>
+            <action android:name="android.accessibilityservice.AccessibilityService"/>
+        </intent>
+        <intent>
+            <action android:name="android.view.InputMethod"/>
+        </intent>
+        <intent>
+            <action android:name="android.service.notification.NotificationListenerService"/>
+        </intent>
+        <intent>
+            <action android:name="android.app.action.DEVICE_ADMIN_ENABLED"/>
+        </intent>
+        <!-- Remote-control apps scammers have victims install; the same list as
+             IntegrityProbeManager.remoteAccessPackages: AnyDesk, TeamViewer
+             QuickSupport, RustDesk (its package name is RustDesk's own) and AirDroid. -->
+        <package android:name="com.anydesk.anydeskandroid"/>
+        <package android:name="com.teamviewer.quicksupport.market"/>
+        <package android:name="com.carriez.flutter_hbb"/>
+        <package android:name="com.sand.airdroid"/>
+    </queries>
+    <application>
+        <!-- Starts before the app's first activity, so the SDK knows which
+             activity the person sees. Serves no data. -->
+        <provider
+            android:name="com.necessarysdk.NecessaryInitializer"
+            android:authorities="${applicationId}.necessary-initializer"
+            android:exported="false" />
+        <!-- The SDK's own invisible activity: it opens the confirm-credential
+             screen (Android 9 and 10) and the location prompt, and takes their
+             answers, so the app's activity forwards nothing. -->
+        <activity
+            android:name="com.necessarysdk.PromptActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+    </application>
+</manifest>

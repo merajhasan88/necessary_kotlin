@@ -1,0 +1,16 @@
+.gradle/
+build/
+/local.properties
+.idea/
+*.iml
+.cxx/
+.externalNativeBuild/
+captures/
+*.keystore
+*.jks
+node_modules/
+dist/
+__pycache__/
+.venv/
+backend/csharp/bin/
+backend/csharp/obj/
