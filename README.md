@@ -364,8 +364,10 @@ tapped.
     be: 401 proof_reused` for the request sent twice, `401 proof_not_accepted` for the other three.
 
 If the phone's screen lock is removed and set again, the step-up key dies: step 7 then shows `The phone
-said STEPUP_KEY_INVALIDATED`. Tap **Re-enrol the step-up key** and unlock with the passcode — expect ✓
-`{"stepup_key_registered":true}` — and step 7 passes again. The new key is that account's alone. If the
+said STEPUP_KEY_INVALIDATED` — or `STEPUP_KEY_UNAVAILABLE` where the keystore cannot say the key is dead,
+only that it cannot read it, as on the Android 9 phone this was tested on (`[cause: … KeyStoreException:
+Key blob corrupted]`). Either way, tap **Re-enrol the step-up key** and unlock with the passcode — expect
+✓ `{"stepup_key_registered":true}` — and step 7 passes again. The new key is that account's alone. If the
 lock was off at step 1 and set afterwards, **Start again** says `step-up off here
 (STEPUP_REENROL_PENDING)`: the backend took the installation without a step-up key, so re-enrol the same
 way after step 4.
