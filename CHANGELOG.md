@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.6
+
+- Apps on Kotlin 2.0 and later can use the SDK. 0.1.5 was compiled as Kotlin 2.4 and asked for Kotlin
+  2.4's standard library, so an app on Kotlin 2.2 or earlier — the Android Gradle plugin 9's own Kotlin
+  among them — could not compile against it. The SDK's classes are now Kotlin 2.0's, and it asks for the
+  standard library 2.0.21 and kotlinx-coroutines 1.9.0. Checked with an app on the Android Gradle plugin
+  9.1 and its own Kotlin 2.2, and one on 8.13 with Kotlin 2.0. Nothing else changed.
+
 ## 0.1.5
 
 The first release: the Necessary SDK for Android apps, in Kotlin, at the protocol and measurements of

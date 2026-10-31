@@ -12,7 +12,7 @@ plugins {
 }
 
 group = "com.necessarysdk"
-version = "0.1.5"
+version = "0.1.6"
 val repository = "https://github.com/merajhasan88/necessary_kotlin"
 // A key named in signing.gnupg.keyName (empty: none) signs what is published.
 val signingKey: String? = providers.gradleProperty("signing.gnupg.keyName").orNull?.takeIf { it.isNotBlank() }
@@ -66,17 +66,22 @@ android {
 }
 
 kotlin {
+    // Apps on Kotlin 2.0 and later can use the SDK: its classes are Kotlin 2.0's,
+    // and it asks for no newer standard library or coroutines than 2.0's.
+    coreLibrariesVersion = "2.0.21"
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        languageVersion = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0
+        apiVersion = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0
     }
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
 }
 
 // Publishing to Maven Central: the release variant with its sources and docs,

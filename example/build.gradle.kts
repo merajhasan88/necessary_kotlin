@@ -16,7 +16,7 @@ android {
         minSdk = 24
         targetSdk = 36
         versionCode = 1
-        versionName = "0.1.5"
+        versionName = "0.1.6"
         // The backends the example offers: "Name=https://...;Other=https://...", or one address.
         manifestPlaceholders["networkSecurityConfig"] =
             if (extraResources != null) "@xml/lab_network_security" else "@xml/network_security"
@@ -57,5 +57,5 @@ kotlin {
 
 dependencies {
     implementation(project(":necessary"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 }

@@ -6,7 +6,8 @@ measurements of the phone and of the app running on it, and a proof on each requ
 and, if you turn them on, a second key the person must unlock to approve a request, and a PIN your
 backend checks. **It never scores and never decides: your backend does.**
 
-Android 7.0 (API 24) and later, from Kotlin or Java. The measuring code, the collector, is version 10.
+Android 7.0 (API 24) and later, for apps in Kotlin 2.0 or later. The measuring code, the collector, is
+version 10.
 
 The SDK's website is **[necessarysdk.com](https://necessarysdk.com)**.
 
@@ -30,7 +31,7 @@ The SDK's website is **[necessarysdk.com](https://necessarysdk.com)**.
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("com.necessarysdk:necessary:0.1.5")
+    implementation("com.necessarysdk:necessary:0.1.6")
 }
 ```
 
