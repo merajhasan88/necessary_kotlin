@@ -89,9 +89,7 @@ class HttpTransport(
         }
 
         val (status, text) = try {
-            client.newCall(builder.build()).await().use { response ->
-                response.code to (response.body?.string() ?: "")
-            }
+            client.newCall(builder.build()).answer()
         } catch (error: InterruptedIOException) {
             throw ApiException("The server did not respond before the timeout.", cause = error)
         } catch (error: IOException) {
@@ -139,11 +137,24 @@ class HttpTransport(
     }
 }
 
-/** The call, abandoned when the caller is. */
-private suspend fun Call.await(): Response = suspendCancellableCoroutine { continuation ->
+/**
+ * The call's status and body, abandoned when the caller is. The body is read
+ * here, on the HTTP client's own thread: the caller may be on the main thread,
+ * where Android refuses to read a socket.
+ */
+private suspend fun Call.answer(): Pair<Int, String> = suspendCancellableCoroutine { continuation ->
     continuation.invokeOnCancellation { cancel() }
     enqueue(object : Callback {
-        override fun onResponse(call: Call, response: Response) = continuation.resume(response)
+        override fun onResponse(call: Call, response: Response) {
+            val answer = try {
+                response.use { it.code to (it.body?.string() ?: "") }
+            } catch (error: IOException) {
+                continuation.resumeWithException(error)
+                return
+            }
+            continuation.resume(answer)
+        }
+
         override fun onFailure(call: Call, e: IOException) = continuation.resumeWithException(e)
     })
 }

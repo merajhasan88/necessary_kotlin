@@ -12,7 +12,7 @@ plugins {
 }
 
 group = "com.necessarysdk"
-version = "0.1.6"
+version = "0.1.7"
 val repository = "https://github.com/merajhasan88/necessary_kotlin"
 // A key named in signing.gnupg.keyName (empty: none) signs what is published.
 val signingKey: String? = providers.gradleProperty("signing.gnupg.keyName").orNull?.takeIf { it.isNotBlank() }

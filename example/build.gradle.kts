@@ -16,7 +16,7 @@ android {
         minSdk = 24
         targetSdk = 36
         versionCode = 1
-        versionName = "0.1.6"
+        versionName = "0.1.7"
         // The backends the example offers: "Name=https://...;Other=https://...", or one address.
         manifestPlaceholders["networkSecurityConfig"] =
             if (extraResources != null) "@xml/lab_network_security" else "@xml/network_security"

@@ -73,12 +73,10 @@ class ScanChallenge(
     companion object {
         fun fromJson(value: Map<String, Any?>): ScanChallenge {
             fun names(list: Any?): List<String> = (list as? List<*>)?.map { it.toString() } ?: emptyList()
-            fun text(field: String): String =
-                value[field] as? String ?: throw IllegalArgumentException("The scan challenge has no $field.")
             return ScanChallenge(
-                challengeId = text("challenge_id"),
-                nonce = text("nonce"),
-                platform = text("platform"),
+                challengeId = answerText(value, "challenge_id"),
+                nonce = answerText(value, "nonce"),
+                platform = answerText(value, "platform"),
                 requiredProbes = names(value["required_probes"]),
                 optionalProbes = names(value["optional_probes"]),
                 answer = value,

@@ -231,6 +231,34 @@ class DeviceTrustTest {
         }
     }
 
+    /** A key the phone lost after it was registered: the next one is made new, and the person cancels its first prompt. */
+    class LostStepUpKey : StepUpKey() {
+        @Volatile var asked = 0
+        @Volatile var cancelled = false
+
+        override suspend fun getOrCreateKey(factor: String, mode: String, windowSeconds: Int): StepUpKeyMetadata {
+            asked += 1
+            val key = super.getOrCreateKey(factor, mode, windowSeconds)
+            return StepUpKeyMetadata(
+                publicKey = key.publicKey,
+                factor = key.factor,
+                mode = key.mode,
+                windowSeconds = key.windowSeconds,
+                securityLevel = key.securityLevel,
+                hardwareBacked = key.hardwareBacked,
+                created = asked > 1,
+            )
+        }
+
+        override suspend fun sign(payloadBase64Url: String, reason: String): String {
+            if (asked > 1 && !cancelled) {
+                cancelled = true
+                throw NativeKeyException("STEPUP_CANCELLED", "the person cancelled")
+            }
+            return super.sign(payloadBase64Url, reason)
+        }
+    }
+
     /** Refuses the first key it is asked for, then makes one. */
     class FlakyStepUpKey : StepUpKey() {
         @Volatile var attempts = 0
@@ -292,6 +320,22 @@ class DeviceTrustTest {
         )
         assertEquals("signed", backend.calls[2].body["signature"])
         assertEquals("installation-session", trust.installationSession)
+    }
+
+    @Test
+    fun anAnswerThatLacksAFieldIsAnApiExceptionNeverACastError() = runBlocking {
+        val code = "invalid_backend_answer"
+        val noSession = trust(Backend(mapOf("/v1/installations/verify" to listOf(emptyMap<String, Any?>()))))
+        assertEquals(code, expectThrows<ApiException> { noSession.start() }.code)
+        val noPayload = trust(Backend(mapOf("/v1/installations/challenge" to listOf(mapOf("challenge_id" to "c")))))
+        assertEquals(code, expectThrows<ApiException> { noPayload.start() }.code)
+        val noChallengeId = trust(Backend(mapOf("/v1/installations/challenge" to listOf(mapOf("payload" to "cGF5")))))
+        assertEquals(code, expectThrows<ApiException> { noChallengeId.start() }.code)
+        val noNonce = trust(
+            Backend(mapOf("/v1/integrity/challenge" to listOf(mapOf("challenge_id" to "scan-challenge")))),
+        )
+        noNonce.start()
+        assertEquals(code, expectThrows<ApiException> { noNonce.scan() }.code)
     }
 
     @Test
@@ -423,6 +467,21 @@ class DeviceTrustTest {
         assertFalse(store.reenrolPending)
         assertNull(restarted.stepUpUnavailable)
         assertTrue("X-Step-Up-Proof" in approve(restarted).headers)
+    }
+
+    @Test
+    fun aKeyThePhoneLostMadeAgainByAReenrolmentThePersonCancelledLeavesApprovalsWaitingToo() = runBlocking {
+        val store = Store()
+        val trust = trust(Backend(), store = store, stepUpKey = LostStepUpKey(), stepUp = StepUpOptions())
+        trust.start()
+        suspend fun reenrol() =
+            trust.reenrolStepUp(session = "account-session", reauthentication = mapOf("password" to "pw"))
+        expectThrows<NativeKeyException> { reenrol() }
+        expectReenrolPending { approve(trust) }
+        assertTrue(store.reenrolPending)
+        assertEquals(true, reenrol()["stepup_key_registered"])
+        assertFalse(store.reenrolPending)
+        assertTrue("X-Step-Up-Proof" in approve(trust).headers)
     }
 
     @Test

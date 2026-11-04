@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.1.7
+
+- `runtime_maps` and `instrumentation_threads` leave the app's own folders and package name out of what
+  they read as names.
+- `root_shell` keeps the shell's error stream out of `su_path`, where a complaint that `which` is missing
+  would have read as `su` found.
+- A step-up signature that fails after the person approved, with any exception, answers the app; a
+  keystore's `ProviderException` there used to end the app.
+- A step-up key the phone lost and a re-enrolment made again leaves approvals waiting until the backend
+  takes it, like a key replaced.
+- A backend's answer that lacks a field the SDK needs is an `ApiException` (`invalid_backend_answer`), not
+  a cast error.
+- The answer to a call is read on the HTTP client's own thread, never the caller's: on the main thread
+  Android can refuse the read with a `NetworkOnMainThreadException`, which reached the app as it came.
+- The Python sample backend answers a malformed request: it used to drop the connection. Its other
+  requests answer as before.
+- `doc/measurements.md`: `installer_package` is left out or null when no installer is named, as the
+  collectors send it; the report's format is the same for every SDK, as it says now.
+- The installation key's message on an Android too old for it no longer calls the SDK a prototype.
+
 ## 0.1.6
 
 - Apps on Kotlin 2.0 and later can use the SDK. 0.1.5 was compiled as Kotlin 2.4 and asked for Kotlin

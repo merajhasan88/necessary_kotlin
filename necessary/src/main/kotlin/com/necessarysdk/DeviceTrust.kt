@@ -366,16 +366,16 @@ class DeviceTrust(
         checkCurrent(generation)
         try {
             val challenge = client.createInstallationChallenge(identity.installationId)
-            val payload = challenge["payload"] as String
+            val payload = answerText(challenge, "payload")
             val verified = client.verifyInstallation(
                 installationId = identity.installationId,
-                challengeId = challenge["challenge_id"] as String,
+                challengeId = answerText(challenge, "challenge_id"),
                 payload = payload,
                 signature = identity.signPayload(payload),
             )
             return synchronized(lock) {
                 current(generation)
-                (verified["device_token"] as String).also { session = it }
+                answerText(verified, "device_token").also { session = it }
             }
         } catch (error: ApiException) {
             if (retried) throw error
@@ -667,21 +667,28 @@ class DeviceTrust(
         checkCurrent(generation)
         stepUpKeyNative.configuredMode = options.mode
 
+        // From here the phone's key and the backend's differ until the backend
+        // takes the new one: approvals wait for that.
+        suspend fun holdApprovals() {
+            mutate(generation) { store.setStepUpReenrolPending(true) }
+            synchronized(lock) {
+                current(generation)
+                offeredStepUpKey = null
+                unavailableStepUp = reenrolPending()
+            }
+        }
+
         suspend fun newKey(replace: Boolean): StepUpKeyMetadata {
             if (replace) {
-                // From here the phone's key and the backend's differ until the
-                // backend takes the new one: approvals wait for that.
-                mutate(generation) { store.setStepUpReenrolPending(true) }
-                synchronized(lock) {
-                    current(generation)
-                    offeredStepUpKey = null
-                    unavailableStepUp = reenrolPending()
-                }
+                holdApprovals()
                 mutate(generation) { stepUpKeyNative.deleteKey() }
             }
-            return mutate(generation) {
+            val key = mutate(generation) {
                 stepUpKeyNative.getOrCreateKey(options.factor, options.mode, options.windowSeconds)
             }
+            // None to replace, the phone having lost it: this one is as new.
+            if (key.created && !replace) holdApprovals()
+            return key
         }
 
         // A re-enrolment is the explicit recovery: a key the keystore cannot

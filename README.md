@@ -31,7 +31,7 @@ The SDK's website is **[necessarysdk.com](https://necessarysdk.com)**.
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("com.necessarysdk:necessary:0.1.6")
+    implementation("com.necessarysdk:necessary:0.1.7")
 }
 ```
 

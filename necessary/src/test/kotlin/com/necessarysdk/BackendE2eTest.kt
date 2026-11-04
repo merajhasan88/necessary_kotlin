@@ -292,6 +292,24 @@ class BackendE2eTest {
     }
 
     @Test
+    fun aMalformedRequestIsAnsweredNeverAConnectionDropped() = runBlocking {
+        suspend fun answered(path: String, body: Map<String, Any?>) = withContext(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url("$backend$path")
+                .post(Json.encode(body).toRequestBody("application/json".toMediaType()))
+                .build()
+            http.newCall(request).execute().use { response ->
+                assertTrue("$path answered ${response.code}", response.code >= 400)
+                assertTrue("$path: its refusal", Json.decodeObject(response.body!!.string())["error"].asObject() != null)
+            }
+        }
+        // A payload that is valid base64url, of JSON that is no object.
+        answered("/v1/installations/verify", mapOf("payload" to base64UrlNoPadding(utf8("[]"))))
+        answered("/v1/installations/challenge", mapOf("installation_id" to emptyList<Int>()))
+        answered("/v1/installations/register", mapOf("installation_id" to 5))
+    }
+
+    @Test
     fun aRequestCarriesItsProofOnce() = runBlocking {
         val trust = trust()
         trust.start()
