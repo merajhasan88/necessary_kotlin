@@ -1,32 +1,46 @@
 # Changelog
 
+## 0.1.8
+
+- Every scan carries `app_host`, whether another app runs yours inside its own: where Android says your
+  app's package file and data are, whether its process runs under your app's own user ID, which other apps
+  Android names for that user ID, which other apps' libraries the processes your app starts are made to
+  load first, and which other apps' code is in its memory. `doc/measurements.md` says how to read it.
+- `debug_state` says whether the runtime's debugger thread runs in your app (`jdwp_thread`).
+- `other_access` names the app that handles calls (`call_app`).
+- A command that exits with an error is not a reading: `root_shell` and `system_properties` say why they
+  could not read, rather than taking what the command printed as the answer.
+- `emulator` also reads the processor and what the device is (`form_factor`, `cpu_vendor`,
+  `cpu_implementers`, `cpu_model`, `hypervisor`, `abis`, `machine`). On a phone or tablet, an x86
+  processor, a hypervisor or Apple's cores count as reasons (`cpu`, `hypervisor`, `abi`), whatever the
+  build values say; on a Chromebook, a PC, a car, a TV or a watch they do not.
+- The collector is version 11.
+- `doc/integration_guide.md`, section 7.7: the genuine users who show a strong reading, how to tell them
+  apart, and what to do.
+- The example's steps start the Python sample backend in Python 3.11 or later, with its packages in a
+  virtual environment of its own (`.venv`), as the sample backends' README does.
+- The Python sample backend stops quietly on Ctrl+C.
+
 ## 0.1.7
 
 - `runtime_maps` and `instrumentation_threads` leave the app's own folders and package name out of what
   they read as names.
-- `root_shell` keeps the shell's error stream out of `su_path`, where a complaint that `which` is missing
-  would have read as `su` found.
-- A step-up signature that fails after the person approved, with any exception, answers the app; a
-  keystore's `ProviderException` there used to end the app.
+- `root_shell` keeps the shell's error stream out of `su_path`.
+- A step-up signature that fails after the person approved answers the app, whatever failed.
 - A step-up key the phone lost and a re-enrolment made again leaves approvals waiting until the backend
   takes it, like a key replaced.
-- A backend's answer that lacks a field the SDK needs is an `ApiException` (`invalid_backend_answer`), not
-  a cast error.
-- The answer to a call is read on the HTTP client's own thread, never the caller's: on the main thread
-  Android can refuse the read with a `NetworkOnMainThreadException`, which reached the app as it came.
-- The Python sample backend answers a malformed request: it used to drop the connection. Its other
-  requests answer as before.
-- `doc/measurements.md`: `installer_package` is left out or null when no installer is named, as the
-  collectors send it; the report's format is the same for every SDK, as it says now.
-- The installation key's message on an Android too old for it no longer calls the SDK a prototype.
+- A backend's answer that lacks a field the SDK needs is an `ApiException` (`invalid_backend_answer`).
+- The answer to a call is read on the HTTP client's own thread, never the caller's.
+- The Python sample backend answers a malformed request with a refusal.
+- `doc/measurements.md`: `installer_package` is left out or null when no installer is named; every SDK
+  sends its report in the same format.
+- On an Android too old for the installation key, the message says that it requires Android 6.0.
 
 ## 0.1.6
 
-- Apps on Kotlin 2.0 and later can use the SDK. 0.1.5 was compiled as Kotlin 2.4 and asked for Kotlin
-  2.4's standard library, so an app on Kotlin 2.2 or earlier — the Android Gradle plugin 9's own Kotlin
-  among them — could not compile against it. The SDK's classes are now Kotlin 2.0's, and it asks for the
-  standard library 2.0.21 and kotlinx-coroutines 1.9.0. Checked with an app on the Android Gradle plugin
-  9.1 and its own Kotlin 2.2, and one on 8.13 with Kotlin 2.0. Nothing else changed.
+- Apps on Kotlin 2.0 and later can use the SDK: its classes are Kotlin 2.0's, and it asks for the
+  standard library 2.0.21 and kotlinx-coroutines 1.9.0 (0.1.5 asked for Kotlin 2.4's). Nothing else
+  changed.
 
 ## 0.1.5
 

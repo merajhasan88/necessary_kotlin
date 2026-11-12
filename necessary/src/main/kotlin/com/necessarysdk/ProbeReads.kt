@@ -25,6 +25,11 @@ internal object ProbeReads {
             get() = when {
                 !started -> "could not start" + (failure?.let { ": $it" } ?: "")
                 !finished -> "did not finish in time"
+                // Every command run here exits 0 when it ran, so another exit is a
+                // command that did not run as asked -- one the system's linker
+                // could not start, say -- and what it printed is why, not an answer.
+                exitCode != null && exitCode != 0 -> "exited with $exitCode" +
+                    (output.trim().lineSequence().firstOrNull()?.takeIf { it.isNotEmpty() }?.let { ": $it" } ?: "")
                 else -> null
             }
     }
@@ -322,6 +327,275 @@ internal object ProbeReads {
             result["fix_time"] = fix.timeMillis / 1000
         }
         return withUnread(result, read.unread)
+    }
+
+    /**
+     * The runtime's debugger thread among this process's thread names
+     * (collector 11): JDWP, through which a debugger attaches to the app's
+     * code. Android starts it only in an app built debuggable, or on a system
+     * that is (ro.debuggable 1): "JDWP" before Android 9, "ADB-JDWP Connection
+     * Control Thread" since (15 characters of it), and "JDWP ..." threads while
+     * a debugger is attached. With a thread name unread, a "no" could be
+     * wrong, so it is unread instead.
+     */
+    fun jdwpThread(names: List<String>, unreadable: Int): Map<String, Any> {
+        val named = names.filter { it.isNotEmpty() }
+        return when {
+            named.any { isJdwpThread(it) } -> mapOf("jdwp_thread" to true)
+            named.isEmpty() -> mapOf("unread" to mapOf("jdwp_thread" to "no thread of this process could be listed"))
+            unreadable > 0 -> mapOf(
+                "unread" to mapOf("jdwp_thread" to "$unreadable of ${named.size + unreadable} thread names could not be read")
+            )
+            else -> mapOf("jdwp_thread" to false)
+        }
+    }
+
+    fun isJdwpThread(name: String): Boolean = name.startsWith("JDWP") || name.startsWith("ADB-JDWP")
+
+    /** Where a file lies, and in whose private folder when it is in one. */
+    data class Place(val kind: String, val owner: String? = null)
+
+    private val installedApps = listOf(Regex("^/data/app/"), Regex("^/mnt/expand/[^/]+/app/"))
+    private val systemPartitions = listOf("/system/", "/system_ext/", "/product/", "/vendor/", "/odm/", "/oem/", "/apex/")
+    private val appData = listOf(
+        Regex("^/data/data/([^/]+)/"),
+        Regex("^/data/user(?:_de)?/\\d+/([^/]+)/"),
+        Regex("^/mnt/expand/[^/]+/user(?:_de)?/\\d+/([^/]+)/"),
+    )
+
+    // An installed app's folder is its package name, '-' (which no package name holds) and a random
+    // part: /data/app/<package>-<x>/, under /data/app/~~<x>/ from Android 11, or on adopted storage.
+    private val installedOwner = Regex("^(?:/data/app/|/mnt/expand/[^/]+/app/)(?:~~[^/]+/)?([A-Za-z][A-Za-z0-9_.]*)-[^/]*/")
+
+    /**
+     * installed: where the package manager puts installed apps, owner naming
+     * the app where its folder does; system: a system partition; app_data: an
+     * app's private folder, owner naming the app; elsewhere: anywhere else.
+     */
+    fun place(path: String): Place {
+        if (installedApps.any { it.containsMatchIn(path) }) {
+            return Place("installed", installedOwner.find(path)?.groupValues?.get(1))
+        }
+        if (systemPartitions.any { path.startsWith(it) }) return Place("system")
+        for (pattern in appData) pattern.find(path)?.let { return Place("app_data", it.groupValues[1]) }
+        return Place("elsewhere")
+    }
+
+    // What a process maps to run code: fonts, databases and other data files are not counted.
+    private val codeFiles = listOf(".apk", ".dex", ".odex", ".vdex", ".oat", ".art", ".so", ".jar")
+    // Apps load Google Play services' code by design (its dynamite modules), from its own folder.
+    private const val PLAY_SERVICES = "com.google.android.gms"
+    private val appHostParts = listOf(
+        "loaded_from", "data_folder", "uid_matches", "uid_other_apps", "preload_other_apps", "other_app_code"
+    )
+    // LD_PRELOAD lists libraries split by spaces or colons, as Android's linker reads it.
+    private fun preloadList(value: String?): List<String> =
+        value.orEmpty().split(' ', ':', '\n', '\t').filter { it.isNotEmpty() }
+    // What a started process's linker prints when it cannot load a library it was given.
+    private val notLoaded = Regex("CANNOT LINK EXECUTABLE \"[^\"]*\": library \"([^\"]+)\"")
+
+    /**
+     * Whether Android runs the app itself, or another app runs it inside its
+     * own (collector 11). An app that does keeps this one's data, and may keep
+     * its package file, in its own private folder, and runs its own code in
+     * this process. The readings: where Android says the package file and the
+     * data are, the process's user ID against the app's, the other apps
+     * Android names for that user ID, the other apps whose libraries a process
+     * the app starts is made to load first, and the code files mapped in from
+     * other apps' private folders. A host can answer the app's questions to
+     * Android for it, so one part reading clean clears nothing another part
+     * shows. A part not read is unread, never a clean answer.
+     *
+     * The libraries to load first (LD_PRELOAD) are read twice: in the app's
+     * own environment, which every process it starts inherits, and in one
+     * process it starts -- the list that process was given or, when it could
+     * not start, the library its linker could not load. Libraries outside
+     * apps' folders are not named.
+     */
+    fun appHost(
+        packageName: String,
+        sourceDir: String?,
+        dataDir: String?,
+        processUid: Int,
+        appUid: Int,
+        packagesForUid: Result<List<String>?>,
+        mapsLines: Result<List<String>>,
+        ownPreload: Result<String?>,
+        startedPreload: CommandResult,
+        maxApps: Int,
+    ): Map<String, Any> {
+        val result = ok()
+        val unread = linkedMapOf<String, String>()
+        if (sourceDir.isNullOrEmpty()) {
+            unread["loaded_from"] = "the app's package file is not named"
+        } else {
+            val where = place(sourceDir)
+            result["loaded_from"] = when {
+                where.kind == "app_data" && where.owner != packageName -> "another_app"
+                where.kind == "installed" || where.kind == "system" -> where.kind
+                else -> "elsewhere"
+            }
+        }
+        if (dataDir.isNullOrEmpty()) {
+            unread["data_folder"] = "the app's data folder is not named"
+        } else {
+            val where = place(dataDir.trimEnd('/') + "/")
+            result["data_folder"] = when {
+                where.kind != "app_data" -> "elsewhere"
+                where.owner == packageName -> "own"
+                else -> "another_app"
+            }
+        }
+        var truncated: Boolean? = null
+        val failed = packagesForUid.exceptionOrNull()
+        if (failed != null) {
+            unread["uid_matches"] = why(failed)
+            unread["uid_other_apps"] = why(failed)
+        } else {
+            val packages = packagesForUid.getOrNull()
+            result["uid_matches"] = processUid == appUid && packages != null && packageName in packages
+            // Android lets only apps signed with this app's own key share its
+            // user ID (sharedUserId), so any other name is either such an app
+            // or an answer that did not come from Android.
+            val others = (packages ?: emptyList()).filter { it != packageName }.toSortedSet()
+            result["uid_other_apps"] = others.take(maxApps).map { it.take(128) }
+            truncated = others.size > maxApps
+        }
+        val preloads = preloadList(ownPreload.getOrNull()).toMutableList()
+        val startedRead = when {
+            startedPreload.problem == null -> { preloads += preloadList(startedPreload.output); true }
+            else -> {
+                val library = if (startedPreload.started && startedPreload.finished) {
+                    notLoaded.find(startedPreload.output)?.groupValues?.get(1)
+                } else null
+                if (library != null) preloads += library
+                library != null
+            }
+        }
+        val preloaders = preloads.mapNotNull { place(it).owner }.filter { it != packageName }.toSortedSet()
+        if (startedRead || preloaders.isNotEmpty()) {
+            result["preload_other_apps"] = preloaders.take(maxApps).map { it.take(128) }
+            truncated = (truncated ?: false) || preloaders.size > maxApps
+        } else {
+            unread["preload_other_apps"] = "a started process " + startedPreload.problem
+        }
+        val lines = mapsLines.getOrNull()
+        if (lines.isNullOrEmpty()) {
+            unread["other_app_code"] = mapsLines.exceptionOrNull()?.let { why(it) } ?: "/proc/self/maps returned no lines"
+        } else {
+            val owners = sortedSetOf<String>()
+            for (line in lines) {
+                val fields = line.trim().split(Regex("\\s+"), limit = 6)
+                if (fields.size < 6) continue
+                val path = fields[5].removeSuffix(" (deleted)")
+                if ('x' !in fields[1] && codeFiles.none { path.endsWith(it) }) continue
+                val where = place(path)
+                val owner = where.owner
+                if (where.kind == "app_data" && owner != null && owner != packageName && owner != PLAY_SERVICES) {
+                    owners.add(owner)
+                }
+            }
+            result["other_app_code"] = owners.take(maxApps).map { it.take(128) }
+            truncated = (truncated ?: false) || owners.size > maxApps
+        }
+        // One flag for the three lists: a list read held more apps than it can.
+        if (truncated != null) result["truncated"] = truncated
+        if (unread.keys.containsAll(appHostParts)) {
+            return error("nothing of where the app runs could be read: " + unread.values.first())
+        }
+        return withUnread(result, unread)
+    }
+
+    /** The processor as /proc/cpuinfo names it: an x86 vendor, ARM implementers, a model, a hypervisor. */
+    data class Cpu(val vendor: String?, val implementers: List<String>, val model: String?, val hypervisor: Boolean?)
+
+    /**
+     * x86 names its vendor (vendor_id) and lists its flags, hypervisor among
+     * them under a virtual machine; ARM names each core's implementer, 0x41
+     * for Arm's own designs. The model is x86's "model name" or ARM's
+     * "Hardware". hypervisor is null where there are no x86 flags to read.
+     */
+    fun cpu(lines: List<String>): Cpu {
+        var vendor: String? = null
+        var model: String? = null
+        var hypervisor: Boolean? = null
+        val implementers = sortedSetOf<String>()
+        for (line in lines) {
+            val colon = line.indexOf(':')
+            if (colon < 0) continue
+            val value = line.substring(colon + 1).trim()
+            when (line.substring(0, colon).trim().lowercase(java.util.Locale.US)) {
+                "vendor_id" -> if (vendor == null && value.isNotEmpty()) vendor = value
+                "cpu implementer" -> if (value.isNotEmpty()) implementers.add(value.lowercase(java.util.Locale.US))
+                "model name", "hardware" -> if (model == null && value.isNotEmpty()) model = value
+                "flags" -> hypervisor = (hypervisor == true) || value.split(' ').contains("hypervisor")
+            }
+        }
+        return Cpu(vendor, implementers.toList(), model, hypervisor)
+    }
+
+    /**
+     * What the device is, by the features its system declares: a Chromebook,
+     * a PC, a car or a TV runs Android apps on hardware no phone has, so its
+     * processor is no sign of an emulator.
+     */
+    fun formFactor(features: Set<String>): String = when {
+        "org.chromium.arc" in features || "org.chromium.arc.device_management" in features -> "chromebook"
+        "android.hardware.type.pc" in features -> "pc"
+        "android.hardware.type.automotive" in features -> "car"
+        "android.software.leanback" in features -> "tv"
+        "android.hardware.type.watch" in features -> "watch"
+        else -> "phone_or_tablet"
+    }
+
+    val formFactorFeatures = listOf(
+        "org.chromium.arc", "org.chromium.arc.device_management", "android.hardware.type.pc",
+        "android.hardware.type.automotive", "android.software.leanback", "android.hardware.type.watch",
+    )
+
+    /** The hardware readings of the emulator measurement, and the reasons they give. */
+    data class EmulatorHardware(
+        val fields: Map<String, Any>,
+        val reasons: List<String>,
+        val unread: Map<String, String>,
+    )
+
+    /**
+     * The processor, the ABIs the system offers and the kernel's machine
+     * (collector 11). Apps that hide an emulator rewrite its build values but
+     * not its processor; no phone running a current Android has an x86 one,
+     * runs under a hypervisor, or has Apple's cores (0x61, an emulator on a
+     * Mac). These count as reasons only on a phone or tablet: a Chromebook, a
+     * PC, a car or a TV may have such hardware, and form_factor says which.
+     */
+    fun emulatorHardware(
+        cpuLines: Result<List<String>>,
+        abis: List<String>,
+        machine: String?,
+        features: Set<String>,
+    ): EmulatorHardware {
+        val fields = linkedMapOf<String, Any>()
+        val reasons = mutableListOf<String>()
+        val unread = linkedMapOf<String, String>()
+        val form = formFactor(features)
+        fields["form_factor"] = form
+        fields["abis"] = abis.take(8).map { it.take(32) }
+        machine?.takeIf { it.isNotEmpty() }?.let { fields["machine"] = it.take(32) }
+        val lines = cpuLines.getOrNull()
+        val cpu = if (lines.isNullOrEmpty()) null else cpu(lines)
+        if (cpu == null || (cpu.vendor == null && cpu.implementers.isEmpty())) {
+            unread["cpu"] = cpuLines.exceptionOrNull()?.let { why(it) } ?: "/proc/cpuinfo names no processor"
+        }
+        cpu?.vendor?.let { fields["cpu_vendor"] = it.take(64) }
+        cpu?.implementers?.takeIf { it.isNotEmpty() }?.let { found -> fields["cpu_implementers"] = found.take(8).map { it.take(8) } }
+        cpu?.model?.let { fields["cpu_model"] = it.take(128) }
+        cpu?.hypervisor?.let { fields["hypervisor"] = it }
+        if (form == "phone_or_tablet") {
+            if (cpu != null && (cpu.vendor != null || "0x61" in cpu.implementers)) reasons.add("cpu")
+            if (cpu?.hypervisor == true) reasons.add("hypervisor")
+            if (abis.isEmpty() || abis.any { it.startsWith("x86") }) reasons.add("abi")
+        }
+        return EmulatorHardware(fields, reasons, unread)
     }
 
     /**

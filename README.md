@@ -7,7 +7,7 @@ and, if you turn them on, a second key the person must unlock to approve a reque
 backend checks. **It never scores and never decides: your backend does.**
 
 Android 7.0 (API 24) and later, for apps in Kotlin 2.0 or later. The measuring code, the collector, is
-version 10.
+version 11.
 
 The SDK's website is **[necessarysdk.com](https://necessarysdk.com)**.
 
@@ -20,7 +20,7 @@ The SDK's website is **[necessarysdk.com](https://necessarysdk.com)**.
 - [The measurement contract](contract/report-1/android-8-ios-5/) — the report's schema, its rules and
   sample reports. The folder's name is two versions: `report-1` is the report's format, and
   `android-8-ios-5` the lowest versions of the measuring code, the collector, that the contract accepts
-  — 8 on Android and 5 on iOS (`collector_version`; this SDK's is 10). They are not the Android versions
+  — 8 on Android and 5 on iOS (`collector_version`; this SDK's is 11). They are not the Android versions
   the SDK runs on, which are above.
 - [The example app](example/) puts every piece below in a working app, against the
   [sample backends](backend/) (in the repository, not the package). [Try the example
@@ -31,7 +31,7 @@ The SDK's website is **[necessarysdk.com](https://necessarysdk.com)**.
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("com.necessarysdk:necessary:0.1.7")
+    implementation("com.necessarysdk:necessary:0.1.8")
 }
 ```
 
@@ -299,11 +299,13 @@ The sample backends live in the repository, not in the package, so start from a 
    cd necessary_kotlin
    ```
 
-2. Start a sample backend on your computer. It answers on `127.0.0.1` only. In Python 3.10 or later:
+2. Start a sample backend on your computer. It answers on `127.0.0.1` only. In Python 3.11 or later, with
+   its packages in a virtual environment of its own:
 
    ```sh
-   pip install --require-hashes -r backend/python/requirements.txt
-   python3 backend/python/server.py --port 8787 --schema contract/report-1/android-8-ios-5/report.schema.json
+   python3 -m venv .venv
+   .venv/bin/python -m pip install --require-hashes -r backend/python/requirements.txt
+   .venv/bin/python backend/python/server.py --port 8787 --schema contract/report-1/android-8-ios-5/report.schema.json
    ```
 
    The TypeScript and C# samples run the same way; their commands are in

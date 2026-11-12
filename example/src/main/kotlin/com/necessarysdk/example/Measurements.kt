@@ -52,7 +52,10 @@ val androidMeasurements: List<MeasurementInfo> = listOf(
         MeasurementGroup.HOOKS,
     ),
     MeasurementInfo("tracer", "Tracer", "Another process tracing the app.", MeasurementGroup.HOOKS),
-    MeasurementInfo("debug_state", "Debugger", "A Java debugger attached or awaited.", MeasurementGroup.HOOKS),
+    MeasurementInfo(
+        "debug_state", "Debugger", "A Java debugger attached or awaited, and the runtime's debugger thread.",
+        MeasurementGroup.HOOKS,
+    ),
     MeasurementInfo(
         "app_identity", "App identity",
         "The installed app: package, the base APK hash, signing certificates, flags, install source and " +
@@ -68,13 +71,21 @@ val androidMeasurements: List<MeasurementInfo> = listOf(
     MeasurementInfo("selinux", "SELinux", "The SELinux mode, read two ways.", MeasurementGroup.SYSTEM),
     MeasurementInfo("mounts", "Mounts", "System partitions mounted writable.", MeasurementGroup.SYSTEM),
     MeasurementInfo("developer_settings", "Developer settings", "Developer options and USB debugging.", MeasurementGroup.SYSTEM),
-    MeasurementInfo("emulator", "Emulator", "Build values typical of an emulator.", MeasurementGroup.SYSTEM),
+    MeasurementInfo(
+        "emulator", "Emulator",
+        "Build values typical of an emulator, and the processor and the form of the device.",
+        MeasurementGroup.SYSTEM,
+    ),
     MeasurementInfo(
         "device", "Device",
         "The OS version, security patch level, model, build, the app's ABI and memory page size.",
         MeasurementGroup.DEVICE,
     ),
     MeasurementInfo("network", "Network", "A VPN up on any network; an HTTP proxy set.", MeasurementGroup.DEVICE),
+    MeasurementInfo(
+        "app_host", "App host", "Whether Android runs the app itself, or another app runs it inside its own.",
+        MeasurementGroup.APP,
+    ),
 )
 
 /** The personal measurements, in the order of [PersonalMeasurement]. */
@@ -92,7 +103,8 @@ val personalCatalog: List<MeasurementInfo> = listOf(
         MeasurementGroup.PERSONAL,
     ),
     MeasurementInfo(
-        "other_access", "Other access", "Device-administrator apps, and known remote-control apps installed.",
+        "other_access", "Other access",
+        "Device-administrator apps, known remote-control apps installed, and the app that handles calls.",
         MeasurementGroup.PERSONAL,
     ),
     MeasurementInfo(
