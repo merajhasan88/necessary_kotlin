@@ -9,7 +9,7 @@ const val REPORT_BYTE_LIMIT: Int = 65536
  * section 6).
  */
 val shortenableLists: Map<String, List<String>> = linkedMapOf(
-    "accessibility" to listOf("services", "settings_only"),
+    "accessibility" to listOf("services", "settings_only", "tool_services", "gesture_services"),
     "notification_access" to listOf("listeners"),
     "other_access" to listOf("device_admins", "remote_access_apps"),
 )

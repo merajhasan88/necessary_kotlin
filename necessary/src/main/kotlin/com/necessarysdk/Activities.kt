@@ -12,8 +12,10 @@ import android.os.Bundle
 /**
  * The app's activities, as the SDK needs them: the one the person sees, for
  * the step-up prompt, the location prompt, screen protection and the
- * screen_capture measurement; and each new window, which screen protection
- * covers while it is held. The SDK's own prompt activity is left out.
+ * screen_capture measurement; each new window, which screen protection
+ * covers while it is held; and the one in front, which the accessibility
+ * measurement watches while the app enables it. The SDK's own prompt
+ * activity is left out.
  */
 internal object Activities : Application.ActivityLifecycleCallbacks {
     @Volatile var visible: Activity? = null
@@ -21,6 +23,10 @@ internal object Activities : Application.ActivityLifecycleCallbacks {
 
     /** Called on the main thread for each activity created while the app runs. */
     @Volatile var onNewWindow: ((Activity) -> Unit)? = null
+
+    /** Called on the main thread when an activity comes to the front, and when it leaves it. */
+    @Volatile var onResumed: ((Activity) -> Unit)? = null
+    @Volatile var onLeft: ((Activity) -> Unit)? = null
 
     @Volatile private var installed = false
 
@@ -44,10 +50,14 @@ internal object Activities : Application.ActivityLifecycleCallbacks {
     }
 
     override fun onActivityResumed(activity: Activity) {
-        if (!ours(activity)) visible = activity
+        if (ours(activity)) return
+        visible = activity
+        onResumed?.invoke(activity)
     }
 
-    override fun onActivityPaused(activity: Activity) {}
+    override fun onActivityPaused(activity: Activity) {
+        if (!ours(activity)) onLeft?.invoke(activity)
+    }
 
     override fun onActivityStopped(activity: Activity) {
         if (visible === activity) visible = null
@@ -56,6 +66,8 @@ internal object Activities : Application.ActivityLifecycleCallbacks {
     override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
 
     override fun onActivityDestroyed(activity: Activity) {
+        if (ours(activity)) return
+        onLeft?.invoke(activity)
         if (visible === activity) visible = null
     }
 }

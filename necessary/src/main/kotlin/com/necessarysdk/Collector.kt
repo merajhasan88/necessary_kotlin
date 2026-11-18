@@ -23,6 +23,15 @@ open class NativeIntegrityCollector internal constructor(private val native: Col
     }
 
     /**
+     * Starts or stops counting how the app's screen is touched, for the
+     * accessibility measurement (collector 12): [DeviceTrust.start] starts it
+     * while the app enables that measurement, so that the counts run from then,
+     * not from the first scan; every scan does the same with what the app
+     * enables at the time. Stopped, what was counted is dropped.
+     */
+    open suspend fun watchTouches(on: Boolean) = native.watchTouches(on)
+
+    /**
      * Asks the person for the OS location permission and returns what the app
      * now holds: precise, approximate or none. Only the app asks, from its own
      * screen; a scan never prompts.

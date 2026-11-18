@@ -13,6 +13,8 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.Editable
 import android.text.InputFilter
 import android.text.InputType
@@ -51,6 +53,17 @@ class Outcome(val action: String, val text: String, val asExpected: Boolean)
 
 class MainActivity : Activity() {
     private val scope = MainScope()
+    private val main = Handler(Looper.getMainLooper())
+
+    /**
+     * Runs what a press does once Android has reported the press. The screen is
+     * drawn again on every press, and Android reports no click to Accessibility
+     * for a view taken off the screen while its click runs: the accessibility
+     * measurement counts the clicks Android reports.
+     */
+    private fun afterPress(action: () -> Unit) {
+        main.post(action)
+    }
     private var backend = backends.keys.first()
     private lateinit var trust: DeviceTrust
     private lateinit var api: SampleApi
@@ -254,7 +267,7 @@ class MainActivity : Activity() {
                                         id = View.generateViewId()
                                         isChecked = name == backend
                                         isEnabled = !busy
-                                        setOnClickListener { if (name != backend) choose(name) }
+                                        setOnClickListener { if (name != backend) afterPress { choose(name) } }
                                     },
                                 )
                             }
@@ -517,8 +530,10 @@ class MainActivity : Activity() {
             if (value?.get("truncated") == true) addView(badge("truncated"))
             addView(badge(statusLabels[status] ?: status, warning = warning))
             setOnClickListener {
-                if (!openMeasurements.add(info.name)) openMeasurements.remove(info.name)
-                render()
+                afterPress {
+                    if (!openMeasurements.add(info.name)) openMeasurements.remove(info.name)
+                    render()
+                }
             }
         }
         body.addView(header)
@@ -565,8 +580,10 @@ class MainActivity : Activity() {
                 addView(TextView(this@MainActivity).apply { text = title; setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f); setTypeface(typeface, Typeface.BOLD) })
                 addView(small(subtitle))
                 setOnClickListener {
-                    if (!expanded.add(title)) expanded.remove(title)
-                    render()
+                    afterPress {
+                        if (!expanded.add(title)) expanded.remove(title)
+                        render()
+                    }
                 }
             },
         )
@@ -585,7 +602,7 @@ class MainActivity : Activity() {
             isEnabled = !busy && enabled
             if (primary) setTextColor(colorPrimary)
             if (outlined) setTextColor(colorMuted)
-            setOnClickListener { onClick(label) }
+            setOnClickListener { afterPress { onClick(label) } }
         }
 
     private fun refusal(label: String, enabled: Boolean, step: suspend () -> Map<String, Any?>): Button =
@@ -629,7 +646,7 @@ class MainActivity : Activity() {
                 text = label
                 isChecked = on
                 isEnabled = !busy
-                setOnCheckedChangeListener { _, checked -> changed(checked) }
+                setOnCheckedChangeListener { _, checked -> afterPress { changed(checked) } }
             },
         )
         about?.let { addView(small(it)) }

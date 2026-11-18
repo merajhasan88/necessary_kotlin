@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.SystemClock
 import android.provider.Settings
 import android.view.WindowManager
 import java.util.concurrent.Executors
@@ -55,7 +56,14 @@ internal class AndroidNative private constructor(private val context: Context) :
         Thread(task, "necessary-worker").apply { isDaemon = true }
     }.asCoroutineDispatcher()
     private val installationKeys = InstallationKeyManager(context)
-    private val integrityProbes = IntegrityProbeManager(context) { Activities.visible }
+    // How the app's screen is touched, for the accessibility measurement:
+    // watched only while the app enables it, on the activity in front.
+    private val touchCounts = TouchCounts(Build.VERSION.SDK_INT, SystemClock::elapsedRealtime)
+    private val touchWatching = TouchWatching<Activity>(
+        attach = { activity -> TouchWatch.attach(activity, touchCounts)?.let { watch -> { watch.detach() } } },
+        discard = { touchCounts.discard() },
+    )
+    private val integrityProbes = IntegrityProbeManager(context, touchCounts) { Activities.visible }
     private val stepUpKeys = StepUpKeyManager(context) { activity, intent, requestCode ->
         PromptActivity.confirmCredential(activity, intent, requestCode)
     }
@@ -68,6 +76,8 @@ internal class AndroidNative private constructor(private val context: Context) :
     init {
         // A window made while the screen is protected is protected too.
         Activities.onNewWindow = { activity -> reattachScreen(activity) }
+        Activities.onResumed = { activity -> touchWatching.resumed(activity) }
+        Activities.onLeft = { activity -> touchWatching.left(activity) }
     }
 
     // MARK: the installation key
@@ -145,8 +155,18 @@ internal class AndroidNative private constructor(private val context: Context) :
         challengeNonce: String,
         optionalProbes: List<String>,
         enabledMeasurements: List<String>,
-    ): Map<String, Any?> = offMainThread {
-        integrityProbes.collect(requiredProbes, challengeNonce, optionalProbes, enabledMeasurements.toSet())
+    ): Map<String, Any?> {
+        // Before the scan: the touches are watched while the app enables the
+        // accessibility measurement.
+        watchTouches("accessibility" in enabledMeasurements)
+        return offMainThread {
+            integrityProbes.collect(requiredProbes, challengeNonce, optionalProbes, enabledMeasurements.toSet())
+        }
+    }
+
+    // On the main thread: it changes the activity's window.
+    override suspend fun watchTouches(on: Boolean) = withContext(Dispatchers.Main.immediate) {
+        touchWatching.want(on, Activities.visible)
     }
 
     // For the location and mock_location measurements: asks the person once,

@@ -95,7 +95,8 @@ val personalCatalog: List<MeasurementInfo> = listOf(
         MeasurementGroup.PERSONAL,
     ),
     MeasurementInfo(
-        "accessibility", "Accessibility", "The Accessibility services that are on, and the keyboard in use.",
+        "accessibility", "Accessibility",
+        "The Accessibility services that are on, the keyboard in use, and whether a service pressed the app's buttons.",
         MeasurementGroup.PERSONAL,
     ),
     MeasurementInfo(

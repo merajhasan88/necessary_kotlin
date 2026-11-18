@@ -143,6 +143,11 @@ class DeviceTrustTest {
 
     class Collector : NativeIntegrityCollector(NoNative) {
         @Volatile var enabled: List<String>? = null
+        val watched = mutableListOf<Boolean>()
+
+        override suspend fun watchTouches(on: Boolean) {
+            watched.add(on)
+        }
 
         override suspend fun collect(
             requiredProbes: List<String>,
@@ -320,6 +325,16 @@ class DeviceTrustTest {
         )
         assertEquals("signed", backend.calls[2].body["signature"])
         assertEquals("installation-session", trust.installationSession)
+    }
+
+    @Test
+    fun startCountsTheTouchesFromThenOnlyWhileTheAppEnablesAccessibility() = runBlocking {
+        val off = Collector()
+        trust(Backend(), collector = off, personal = setOf(PersonalMeasurement.SCREEN_CAPTURE)).start()
+        assertEquals(emptyList<Boolean>(), off.watched)
+        val on = Collector()
+        trust(Backend(), collector = on, personal = setOf(PersonalMeasurement.ACCESSIBILITY)).start()
+        assertEquals(listOf(true), on.watched)
     }
 
     @Test

@@ -31,6 +31,9 @@ internal interface CollectorNative {
         enabledMeasurements: List<String>,
     ): Map<String, Any?>
 
+    /** Starts or stops counting how the app's screen is touched, for the accessibility measurement. */
+    suspend fun watchTouches(on: Boolean)
+
     suspend fun requestLocationPermission(): String
 }
 
@@ -55,6 +58,8 @@ internal object NoNative : InstallationKeyNative, StepUpKeyNative, CollectorNati
         optionalProbes: List<String>,
         enabledMeasurements: List<String>,
     ): Map<String, Any?> = missing()
+    // No screen to watch: nothing to count.
+    override suspend fun watchTouches(on: Boolean) {}
     override suspend fun requestLocationPermission(): String = missing()
     override suspend fun protect(on: Boolean): Map<String, Any?> = missing()
 }

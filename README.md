@@ -7,7 +7,7 @@ and, if you turn them on, a second key the person must unlock to approve a reque
 backend checks. **It never scores and never decides: your backend does.**
 
 Android 7.0 (API 24) and later, for apps in Kotlin 2.0 or later. The measuring code, the collector, is
-version 11.
+version 12.
 
 The SDK's website is **[necessarysdk.com](https://necessarysdk.com)**.
 
@@ -20,7 +20,7 @@ The SDK's website is **[necessarysdk.com](https://necessarysdk.com)**.
 - [The measurement contract](contract/report-1/android-8-ios-5/) — the report's schema, its rules and
   sample reports. The folder's name is two versions: `report-1` is the report's format, and
   `android-8-ios-5` the lowest versions of the measuring code, the collector, that the contract accepts
-  — 8 on Android and 5 on iOS (`collector_version`; this SDK's is 11). They are not the Android versions
+  — 8 on Android and 5 on iOS (`collector_version`; this SDK's is 12). They are not the Android versions
   the SDK runs on, which are above.
 - [The example app](example/) puts every piece below in a working app, against the
   [sample backends](backend/) (in the repository, not the package). [Try the example
@@ -31,7 +31,7 @@ The SDK's website is **[necessarysdk.com](https://necessarysdk.com)**.
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("com.necessarysdk:necessary:0.1.8")
+    implementation("com.necessarysdk:necessary:0.1.9")
 }
 ```
 
@@ -98,7 +98,7 @@ scan follows, and the installation and its step-up key stay as they are.
 | `PersonalMeasurement` | What it reports |
 |---|---|
 | `LOCAL_ADDRESSES` | the phone's own IP addresses, link-local ones left out |
-| `ACCESSIBILITY` | the Accessibility services that are on, and the keyboard in use |
+| `ACCESSIBILITY` | the Accessibility services that are on, the keyboard in use, and whether a service pressed your app's buttons |
 | `NOTIFICATION_ACCESS` | the apps allowed to read notifications |
 | `OTHER_ACCESS` | device-administrator apps, and known remote-control apps installed |
 | `SCREEN_CAPTURE` | the screen being recorded (Android 15 and later), mirrored or cast |
@@ -107,6 +107,11 @@ scan follows, and the installation and its step-up key stay as they are.
 
 The location needs the person's permission as well: declare it (Install, above) and ask from your own
 screen with `trust.requestLocationPermission()`, which answers `precise`, `approximate` or `none`.
+
+With `ACCESSIBILITY` on when `start()` runs, the SDK counts how your app's screen is touched from then on:
+the touches, those an Accessibility service made, and the clicks with no touch before them. Each scan that
+carries the measurement sends the counts and starts them afresh; nothing is counted while it is off, and
+turning it off drops the counts.
 
 ## Prove your own requests
 
@@ -410,7 +415,7 @@ measurement's row, and change it back afterwards.
 | `screen_capture` | start the screen recorder (Android 15 and later); connect an external display | `recording` true; `external_displays` 1 |
 | `location` | tap **Ask for the location permission** and allow it | the `permission`, the coordinates and their `age_seconds` |
 | `mock_location` | Developer options → Select mock location app, and run a mock-location app | `mock` true |
-| `accessibility` | Settings → Accessibility → turn on a service such as Select to Speak; or choose another keyboard | the service in `services`; the keyboard in `keyboard` |
+| `accessibility` | Settings → Accessibility → turn on a service such as Select to Speak; or choose another keyboard; or turn on a service that presses buttons, such as Switch Access or Voice Access, and press **Scan** with it | the service in `services`; the keyboard in `keyboard`; `clicks_without_touch` or `touches_injected` 1 or more, and the service in `tool_services` where it declares itself a tool (Android 12 and later) |
 | `notification_access` | Settings → Notification access (under Special app access) → allow an app | the app in `listeners` |
 | `other_access` | install AnyDesk, TeamViewer QuickSupport, RustDesk or AirDroid; or make an app a device administrator | the app in `remote_access_apps`; in `device_admins` |
 | `app_identity` | install a build of the example made with other code | other hashes; a debug build reads `debuggable` true |

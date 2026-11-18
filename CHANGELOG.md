@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.1.9
+
+- `accessibility` names the services that declare themselves tools for users with disabilities
+  (`tool_services`, Android 12 and later) and those that can tap and swipe on the screen
+  (`gesture_services`), and says whether a service pressed your app's buttons: with the measurement on
+  when `start()` runs, the SDK counts the touches on your app's screen (`touches`), those an Accessibility
+  service made (`touches_injected`) and the clicks with no touch or key press before them
+  (`clicks_without_touch`), over `counted_seconds`, and each scan that carries the measurement starts them
+  afresh. Counts only: no position, no screen and no text, and nothing is counted while the measurement is
+  off. `doc/measurements.md` says how to read them, and the integration guide's section 7.7 who shows them
+  genuinely.
+- `doc/measurements.md` and the integration guide say what the touch counts showed on phones: a service's
+  taps and clicks counted, a finger's touches and a keyboard's presses not. They also describe the iOS
+  reading `executable_encrypted`, whether Apple stores an app's code encrypted, which iOS SDKs send.
+- `doc/measurements.md`: a click is counted only when Android reports it, and Android reports none for a
+  button an app takes off the screen while the click runs. The example now draws its screen again just after
+  each press, so that Android reports the press.
+- The collector is version 12.
+
 ## 0.1.8
 
 - Every scan carries `app_host`, whether another app runs yours inside its own: where Android says your

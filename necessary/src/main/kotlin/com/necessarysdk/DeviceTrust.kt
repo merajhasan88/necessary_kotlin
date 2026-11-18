@@ -282,6 +282,8 @@ class DeviceTrust(
     }
 
     private suspend fun startOnce(generation: Int): InstallationIdentity {
+        // Counted from now while the app enables the accessibility measurement.
+        if (PersonalMeasurement.ACCESSIBILITY in personalMeasurements) collector.watchTouches(true)
         loadIdentity()
         register(generation)
         prove()
