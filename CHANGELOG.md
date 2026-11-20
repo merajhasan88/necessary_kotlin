@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.10
+
+- `other_access` names the default SMS app (`sms_app`), whose installer and system flag tell an app the user
+  chose from one that made itself the SMS app to read one-time codes. `doc/measurements.md` says how to read
+  it, and the integration guide's section 7.7 what to do.
+- The README says which clicks the SDK counts: those your app's screen reports to Accessibility, each once.
+  `doc/measurements.md` says which clicks a screen reports.
+- The collector is version 13.
+
 ## 0.1.9
 
 - `accessibility` names the services that declare themselves tools for users with disabilities

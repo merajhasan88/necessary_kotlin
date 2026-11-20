@@ -105,7 +105,7 @@ val personalCatalog: List<MeasurementInfo> = listOf(
     ),
     MeasurementInfo(
         "other_access", "Other access",
-        "Device-administrator apps, known remote-control apps installed, and the app that handles calls.",
+        "Device-administrator apps, known remote-control apps installed, and the apps that handle calls and texts.",
         MeasurementGroup.PERSONAL,
     ),
     MeasurementInfo(

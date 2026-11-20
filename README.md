@@ -7,7 +7,7 @@ and, if you turn them on, a second key the person must unlock to approve a reque
 backend checks. **It never scores and never decides: your backend does.**
 
 Android 7.0 (API 24) and later, for apps in Kotlin 2.0 or later. The measuring code, the collector, is
-version 12.
+version 13.
 
 The SDK's website is **[necessarysdk.com](https://necessarysdk.com)**.
 
@@ -20,7 +20,7 @@ The SDK's website is **[necessarysdk.com](https://necessarysdk.com)**.
 - [The measurement contract](contract/report-1/android-8-ios-5/) — the report's schema, its rules and
   sample reports. The folder's name is two versions: `report-1` is the report's format, and
   `android-8-ios-5` the lowest versions of the measuring code, the collector, that the contract accepts
-  — 8 on Android and 5 on iOS (`collector_version`; this SDK's is 12). They are not the Android versions
+  — 8 on Android and 5 on iOS (`collector_version`; this SDK's is 13). They are not the Android versions
   the SDK runs on, which are above.
 - [The example app](example/) puts every piece below in a working app, against the
   [sample backends](backend/) (in the repository, not the package). [Try the example
@@ -31,7 +31,7 @@ The SDK's website is **[necessarysdk.com](https://necessarysdk.com)**.
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("com.necessarysdk:necessary:0.1.9")
+    implementation("com.necessarysdk:necessary:0.1.10")
 }
 ```
 
@@ -100,7 +100,7 @@ scan follows, and the installation and its step-up key stay as they are.
 | `LOCAL_ADDRESSES` | the phone's own IP addresses, link-local ones left out |
 | `ACCESSIBILITY` | the Accessibility services that are on, the keyboard in use, and whether a service pressed your app's buttons |
 | `NOTIFICATION_ACCESS` | the apps allowed to read notifications |
-| `OTHER_ACCESS` | device-administrator apps, and known remote-control apps installed |
+| `OTHER_ACCESS` | device-administrator apps, known remote-control apps installed, and the apps that handle calls and texts |
 | `SCREEN_CAPTURE` | the screen being recorded (Android 15 and later), mirrored or cast |
 | `LOCATION` | the last location the phone already knows — never a fresh fix, never a prompt |
 | `MOCK_LOCATION` | whether that location was faked |
@@ -112,6 +112,12 @@ With `ACCESSIBILITY` on when `start()` runs, the SDK counts how your app's scree
 the touches, those an Accessibility service made, and the clicks with no touch before them. Each scan that
 carries the measurement sends the counts and starts them afresh; nothing is counted while it is off, and
 turning it off drops the counts.
+
+The SDK counts the clicks your app's screen reports to Accessibility, each once. Android's own views report
+a click, on a button, a switch or a radio button, once your app has acted on it, and none for a view your
+app took off the screen in that time: Draw your screen again after the click returns. Compose reports a
+click on an element that handles clicks or toggles. A click in a dialog, which is a window of its own, is
+not counted.
 
 ## Prove your own requests
 
@@ -417,7 +423,7 @@ measurement's row, and change it back afterwards.
 | `mock_location` | Developer options → Select mock location app, and run a mock-location app | `mock` true |
 | `accessibility` | Settings → Accessibility → turn on a service such as Select to Speak; or choose another keyboard; or turn on a service that presses buttons, such as Switch Access or Voice Access, and press **Scan** with it | the service in `services`; the keyboard in `keyboard`; `clicks_without_touch` or `touches_injected` 1 or more, and the service in `tool_services` where it declares itself a tool (Android 12 and later) |
 | `notification_access` | Settings → Notification access (under Special app access) → allow an app | the app in `listeners` |
-| `other_access` | install AnyDesk, TeamViewer QuickSupport, RustDesk or AirDroid; or make an app a device administrator | the app in `remote_access_apps`; in `device_admins` |
+| `other_access` | install AnyDesk, TeamViewer QuickSupport, RustDesk or AirDroid; or make an app a device administrator; or choose another call or SMS app (Settings → Apps → Default apps) | the app in `remote_access_apps`; in `device_admins`; in `call_app` or `sms_app` |
 | `app_identity` | install a build of the example made with other code | other hashes; a debug build reads `debuggable` true |
 | `debug_state` | in Android Studio, Run → Attach Debugger to Android Process, on a debug build | `debugger_connected` true |
 
